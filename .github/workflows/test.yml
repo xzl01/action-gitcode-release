@@ -1,213 +1,247 @@
-name: Comprehensive Test
+name: Comprehensive Test(直接拉取项目)
 on:
   workflow_dispatch:
     inputs: 
-      gitee_owner:
-        description: 'Gitee 用户名, 项目URL中可获取'
+      gitcode_owner:
+        description: 'GitCode 用户名，项目 URL 中可获取'
         required: true
         default: NiceLeee
-      gitee_repo:
-        description: 'Gitee 项目名, 项目URL中可获取'
+      gitcode_repo:
+        description: 'GitCode 项目名，项目 URL 中可获取'
         required: true
         default: NiceLeee
-      gitee_token:
-        description: 'Gitee api token'
+      gitcode_token:
+        description: 'GitCode api token'
         required: true
+      gitcode_upload_retry_times:
+        description: '上传附件失败后的尝试次数'
+        required: false
+        default: '2'
+      runs_on:
+        description: '测试平台 ubuntu-latest/windows-latest 等'
+        required: true
+        default: ubuntu-latest
+        
 jobs:
-  # Job 1: 测试单文件创建release和相关操作
+  # Job 1: 测试单文件创建 release 和相关操作  
   test-single-file:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs_on }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.ref }}
+    - name: Create test files
+      run: |
+        mkdir test_dir
+        cd test_dir
+        echo file1 > test_file1.txt
+        echo file2 > test_file2.txt
+        echo file3 > test_file3.txt
+        echo file4 > test_file4.md
         
     - name: Test create release with single file
       id: create_release_single
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: create_release
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-single-${{ github.run_number }}
-        gitee_release_name: Single File Test v1.0-${{ github.run_number }}
-        gitee_release_body: 'Gitee single file release test'
-        gitee_target_commitish: master
-        gitee_file_name: 'single-test.txt'
-        gitee_file_path: 'LICENSE'
+        gitcode_action: create_release
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-single-${{ github.run_number }}
+        gitcode_release_name: Single File Test v1.0-${{ github.run_number }}
+        gitcode_release_body: GitCode single file release test
+        gitcode_target_commitish: ""
+        gitcode_upload_retry_times: ${{ inputs.gitcode_upload_retry_times }}
+        gitcode_file_name: 单文件测试.txt
+        gitcode_file_path: ./test_dir/test_file1.txt
           
     - name: Test upload additional single file to existing release
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: upload_asset
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_release_id: ${{ steps.create_release_single.outputs.release-id }}
-        gitee_file_name: 'additional-single.txt'
-        gitee_file_path: 'README.md'
+        gitcode_action: upload_asset
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_release_id: ${{ steps.create_release_single.outputs.release-id }}
+        gitcode_upload_retry_times: ${{ inputs.gitcode_upload_retry_times }}
+        gitcode_file_name: 附加单文件.txt
+        gitcode_file_path: ./test_dir/test_file2.txt
 
     - name: Test upload using tag_name (single)
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: upload_asset
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-single-${{ github.run_number }}
-        gitee_file_name: 'tag-upload-single.txt'
-        gitee_file_path: 'action.yml'
+        gitcode_action: upload_asset
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-single-${{ github.run_number }}
+        gitcode_upload_retry_times: ${{ inputs.gitcode_upload_retry_times }}
+        gitcode_file_name: 标签上传测试.txt
+        gitcode_file_path: ./test_dir/test_file3.txt
         
     - name: Test update asset
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: update_asset
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-single-${{ github.run_number }}
-        gitee_old_asset_name: 'single-test.txt'
-        gitee_new_file_path: 'requirements.txt'
+        gitcode_action: update_asset
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-single-${{ github.run_number }}
+        gitcode_old_asset_name: 单文件测试.txt
+        gitcode_new_file_path: ./test_dir/test_file4.md
         
     - name: Test delete specific asset
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: delete_asset
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-single-${{ github.run_number }}
-        gitee_delete_assets: 'tag-upload-single.txt'
+        gitcode_action: delete_asset
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-single-${{ github.run_number }}
+        gitcode_delete_assets: 标签上传测试.txt
         
     - name: Test delete release
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: delete_release
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-single-${{ github.run_number }}
+        gitcode_action: delete_release
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-single-${{ github.run_number }}
 
-  # Job 2: 测试多文件创建release和相关操作
+  # Job 2: 测试多文件创建 release 和相关操作
   test-multi-file:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs_on }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.ref }}
+    - name: Create test files
+      run: |
+        mkdir test_dir
+        cd test_dir
+        echo file1 > test_file1.txt
+        echo file2 > test_file2.txt
+        echo file3 > test_file3.txt
+        echo file4 > test_file4.md
+        echo file5 > test_file5.txt
         
     - name: Test create release with multiple files
       id: create_release_multi
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: create_release
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-multi-${{ github.run_number }}
-        gitee_release_name: Multi File Test v1.0-${{ github.run_number }}
-        gitee_release_body: 'Gitee multi file release test'
-        gitee_target_commitish: master
-        gitee_files: |
-          LICENSE
-          README.md
-          action.yml
+        gitcode_action: create_release
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-multi-${{ github.run_number }}
+        gitcode_release_name: Multi File Test v1.0-${{ github.run_number }}
+        gitcode_release_body: GitCode multi file release test
+        gitcode_target_commitish: ""
+        gitcode_upload_retry_times: ${{ inputs.gitcode_upload_retry_times }}
+        gitcode_files: |
+          ./test_dir/test_file1.txt
+          ./test_dir/test_file2.txt
+          ./test_dir/test_file4.md
           
     - name: Test upload additional multiple files to existing release
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: upload_asset
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_release_id: ${{ steps.create_release_multi.outputs.release-id }}
-        gitee_files: |
-          requirements.txt
-          gitee_release.py
+        gitcode_action: upload_asset
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_release_id: ${{ steps.create_release_multi.outputs.release-id }}
+        gitcode_upload_retry_times: ${{ inputs.gitcode_upload_retry_times }}
+        gitcode_files: |
+          ./test_dir/test_file3.txt
+          ./test_dir/test_file5.txt
 
     - name: Test upload using tag_name (multi)
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: upload_asset
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-multi-${{ github.run_number }}
-        gitee_file_name: 'tag-upload-multi.txt'
-        gitee_file_path: 'LICENSE'
+        gitcode_action: upload_asset
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-multi-${{ github.run_number }}
+        gitcode_upload_retry_times: ${{ inputs.gitcode_upload_retry_times }}
+        gitcode_file_name: 多文件标签上传.txt
+        gitcode_file_path: ./test_dir/test_file1.txt
         
     - name: Test delete multiple assets
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: delete_asset
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-multi-${{ github.run_number }}
-        gitee_delete_assets: |
-          tag-upload-multi.txt
-          LICENSE
+        gitcode_action: delete_asset
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-multi-${{ github.run_number }}
+        gitcode_delete_assets: |
+          多文件标签上传.txt
+          test_file1.txt
         
     - name: Test delete release
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: delete_release
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-multi-${{ github.run_number }}
+        gitcode_action: delete_release
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-multi-${{ github.run_number }}
 
-  # Job 3: 测试使用已存在release ID的场景
+  # Job 3: 测试使用已存在 release ID 的场景
   test-existing-release:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs_on }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.ref }}
+    - name: Create test files
+      run: |
+        mkdir test_dir
+        cd test_dir
+        echo file1 > test_file1.txt
+        echo file2 > test_file2.txt
+        echo file3 > test_file3.txt
+        echo file4 > test_file4.md
         
     - name: Create base release for testing
       id: create_base_release
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: create_release
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-existing-${{ github.run_number }}
-        gitee_release_name: Existing Release Test v1.0-${{ github.run_number }}
-        gitee_release_body: 'Test using existing release ID'
-        gitee_target_commitish: master
+        gitcode_action: create_release
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-existing-${{ github.run_number }}
+        gitcode_release_name: Existing Release Test v1.0-${{ github.run_number }}
+        gitcode_release_body: Test using existing release ID
+        gitcode_target_commitish: ""
+        gitcode_upload_retry_times: ${{ inputs.gitcode_upload_retry_times }}
         
     - name: Test upload single file to existing release by ID
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: upload_asset
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_release_id: ${{ steps.create_base_release.outputs.release-id }}
-        gitee_file_name: 'existing-single.txt'
-        gitee_file_path: 'LICENSE'
+        gitcode_action: upload_asset
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_release_id: ${{ steps.create_base_release.outputs.release-id }}
+        gitcode_upload_retry_times: ${{ inputs.gitcode_upload_retry_times }}
+        gitcode_file_name: 已存在 ID 单文件.txt
+        gitcode_file_path: ./test_dir/test_file1.txt
         
     - name: Test upload multiple files to existing release by ID
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: upload_asset
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_release_id: ${{ steps.create_base_release.outputs.release-id }}
-        gitee_files: |
-          README.md
-          action.yml
-          requirements.txt
+        gitcode_action: upload_asset
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_release_id: ${{ steps.create_base_release.outputs.release-id }}
+        gitcode_upload_retry_times: ${{ inputs.gitcode_upload_retry_times }}
+        gitcode_files: |
+          ./test_dir/test_file2.txt
+          ./test_dir/test_file3.txt
+          ./test_dir/test_file4.md
         
     - name: Test delete release
-      uses: ./
+      uses: nicennnnnnnlee/action-gitcode-release@master
       with:
-        gitee_action: delete_release
-        gitee_owner: ${{ inputs.gitee_owner }}
-        gitee_repo: ${{ inputs.gitee_repo }}
-        gitee_token: ${{ inputs.gitee_token }}
-        gitee_tag_name: v1.0-existing-${{ github.run_number }}
+        gitcode_action: delete_release
+        gitcode_owner: ${{ inputs.gitcode_owner }}
+        gitcode_repo: ${{ inputs.gitcode_repo }}
+        gitcode_token: ${{ inputs.gitcode_token }}
+        gitcode_tag_name: v1.0-existing-${{ github.run_number }}

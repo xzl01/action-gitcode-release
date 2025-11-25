@@ -7,7 +7,7 @@ import time
 from requests_toolbelt import MultipartEncoder
 from functools import wraps
 
-retry_times = os.environ.get("gitee_upload_retry_times", "0")
+retry_times = os.environ.get("gitcode_upload_retry_times", "0")
 try:
     retry_times = int(retry_times)
 except Exception:
@@ -47,13 +47,13 @@ def no_catch(exception, exclude_exceptions):
             return True
     return False
     
-class Gitee:
+class GitCode:
     def __init__(self, owner, token):
         self.owner = owner
         self.token = token
 
     def create_release(self, repo, tag_name, name, body = '-', target_commitish = 'master'):
-        url = f'https://gitee.com/api/v5/repos/{self.owner}/{repo}/releases'
+        url = f'https://gitcode.com/api/v5/repos/{self.owner}/{repo}/releases'
         data = {
             'access_token': self.token,
             'tag_name': tag_name,
@@ -102,7 +102,7 @@ class Gitee:
                     'file': (file_name, f, 'application/octet-stream'),
                 }
                 m = MultipartEncoder(fields=fields)
-                url = f"https://gitee.com/api/v5/repos/{self.owner}/{repo}/releases/{release_id}/attach_files"
+                url = f"https://gitcode.com/api/v5/repos/{self.owner}/{repo}/releases/{release_id}/attach_files"
                 response = requests.post(url, data=m, headers={'Content-Type': m.content_type})
         else:
             raise ValueError('files or (file_name and file_path) should not be False at the same time')
@@ -118,7 +118,7 @@ class Gitee:
             return False, "No 'browser_download_url' in response"
 
     def get_release_by_tag(self, repo, tag_name):
-        url = f'https://gitee.com/api/v5/repos/{self.owner}/{repo}/releases/tags/{tag_name}'
+        url = f'https://gitcode.com/api/v5/repos/{self.owner}/{repo}/releases/tags/{tag_name}'
         params = {'access_token': self.token}
         response = requests.get(url, params=params)
         res = response.json()
@@ -130,7 +130,7 @@ class Gitee:
             return False, "No release id found"
 
     def get_asset_id(self, repo, release_id, filename):
-        url = f'https://gitee.com/api/v5/repos/{self.owner}/{repo}/releases/{release_id}/attach_files'
+        url = f'https://gitcode.com/api/v5/repos/{self.owner}/{repo}/releases/{release_id}/attach_files'
         params = {'access_token': self.token, "per_page": 100}
         response = requests.get(url, params=params)
         res = response.json()
@@ -164,7 +164,7 @@ class Gitee:
         return self.delete_release(repo, release_id)
 
     def delete_release(self, repo, release_id):
-        url = f'https://gitee.com/api/v5/repos/{self.owner}/{repo}/releases/{release_id}'
+        url = f'https://gitcode.com/api/v5/repos/{self.owner}/{repo}/releases/{release_id}'
         params = {'access_token': self.token}
         response = requests.delete(url, params=params)
         if response.status_code == 204:
@@ -184,7 +184,7 @@ class Gitee:
         return self.delete_asset(repo, release_id, asset_id)
 
     def delete_asset(self, repo, release_id, asset_id):
-        url = f'https://gitee.com/api/v5/repos/{self.owner}/{repo}/releases/{release_id}/attach_files/{asset_id}'
+        url = f'https://gitcode.com/api/v5/repos/{self.owner}/{repo}/releases/{release_id}/attach_files/{asset_id}'
         params = {'access_token': self.token}
         response = requests.delete(url, params=params)
         if response.status_code == 204:
@@ -212,10 +212,10 @@ def set_result(name, result):
                 output.write(f"{name}<<{delimiter}\n{result}\n{delimiter}\n")
                 print(f"{name}<<{delimiter}\n{result}\n{delimiter}\n")
                 
-def upload_assets(gitee_files, gitee_client, gitee_repo, gitee_release_id):
+def upload_assets(gitcode_files, gitcode_client, gitcode_repo, gitcode_release_id):
     result = []
     uploaded_path = set()
-    for file_path_pattern in gitee_files:
+    for file_path_pattern in gitcode_files:
         file_path_pattern = file_path_pattern.strip()
         recursive = True if "**" in file_path_pattern else False
         files = glob.glob(file_path_pattern, recursive = recursive)
@@ -224,7 +224,7 @@ def upload_assets(gitee_files, gitee_client, gitee_repo, gitee_release_id):
         for file_path in files:
             if file_path in uploaded_path or os.path.isdir(file_path):
                 continue
-            success, msg = gitee_client.upload_asset(gitee_repo, gitee_release_id, file_name = os.path.basename(file_path), file_path = file_path)
+            success, msg = gitcode_client.upload_asset(gitcode_repo, gitcode_release_id, file_name = os.path.basename(file_path), file_path = file_path)
             if not success:
                 raise Exception("Upload file asset failed: " + msg)
             result.append(msg)
@@ -232,39 +232,39 @@ def upload_assets(gitee_files, gitee_client, gitee_repo, gitee_release_id):
     return result
     
 def create_release():
-    gitee_owner = get('gitee_owner')
-    gitee_token = get('gitee_token')
-    gitee_repo = get('gitee_repo')
-    gitee_tag_name = get('gitee_tag_name')
-    gitee_release_name = get('gitee_release_name')
-    gitee_release_body = get('gitee_release_body')
-    gitee_target_commitish = get('gitee_target_commitish')
+    gitcode_owner = get('gitcode_owner')
+    gitcode_token = get('gitcode_token')
+    gitcode_repo = get('gitcode_repo')
+    gitcode_tag_name = get('gitcode_tag_name')
+    gitcode_release_name = get('gitcode_release_name')
+    gitcode_release_body = get('gitcode_release_body')
+    gitcode_target_commitish = get('gitcode_target_commitish')
     
-    gitee_files = os.environ.get('gitee_files')
-    if gitee_files:
-        gitee_files = gitee_files.strip().split("\n")
+    gitcode_files = os.environ.get('gitcode_files')
+    if gitcode_files:
+        gitcode_files = gitcode_files.strip().split("\n")
     else:
-        gitee_file_name = os.environ.get('gitee_file_name')
-        gitee_file_path = os.environ.get('gitee_file_path')
-        if (gitee_file_name and not gitee_file_path) or (gitee_file_path and not gitee_file_name):
-            raise ValueError('gitee_file_name and gitee_file_path should be set together')
-        if gitee_file_path and not os.path.isfile(gitee_file_path):
-            raise ValueError('gitee_file_path not exists: ' + gitee_file_path)
+        gitcode_file_name = os.environ.get('gitcode_file_name')
+        gitcode_file_path = os.environ.get('gitcode_file_path')
+        if (gitcode_file_name and not gitcode_file_path) or (gitcode_file_path and not gitcode_file_name):
+            raise ValueError('gitcode_file_name and gitcode_file_path should be set together')
+        if gitcode_file_path and not os.path.isfile(gitcode_file_path):
+            raise ValueError('gitcode_file_path not exists: ' + gitcode_file_path)
     
-    gitee_client = Gitee(owner = gitee_owner, token = gitee_token)
-    success, release_id = gitee_client.create_release(repo = gitee_repo, tag_name = gitee_tag_name, name = gitee_release_name, 
-                body = gitee_release_body, target_commitish = gitee_target_commitish)
+    gitcode_client = GitCode(owner = gitcode_owner, token = gitcode_token)
+    success, release_id = gitcode_client.create_release(repo = gitcode_repo, tag_name = gitcode_tag_name, name = gitcode_release_name, 
+                body = gitcode_release_body, target_commitish = gitcode_target_commitish)
     if success:
         print(f"Release created successfully with ID: {release_id}")
         set_result("release-id", release_id)
         
         # Upload files if provided
-        if gitee_files:
-            result = upload_assets(gitee_files, gitee_client, gitee_repo, release_id)
+        if gitcode_files:
+            result = upload_assets(gitcode_files, gitcode_client, gitcode_repo, release_id)
             if result:
                 set_result("download-url", '\n'.join(result))
-        elif gitee_file_path:
-            success, msg = gitee_client.upload_asset(gitee_repo, release_id, file_name = gitee_file_name, file_path = gitee_file_path)
+        elif gitcode_file_path:
+            success, msg = gitcode_client.upload_asset(gitcode_repo, release_id, file_name = gitcode_file_name, file_path = gitcode_file_path)
             if not success:
                 raise Exception("Upload file asset failed: " + msg)
             set_result("download-url", msg)
@@ -272,93 +272,93 @@ def create_release():
         raise Exception("Create release failed: " + str(release_id))
 
 def upload_asset():
-    gitee_owner = get('gitee_owner')
-    gitee_repo = get('gitee_repo')
-    gitee_token = get('gitee_token')
-    gitee_files = os.environ.get('gitee_files')
+    gitcode_owner = get('gitcode_owner')
+    gitcode_repo = get('gitcode_repo')
+    gitcode_token = get('gitcode_token')
+    gitcode_files = os.environ.get('gitcode_files')
     
-    gitee_client = Gitee(owner = gitee_owner, token = gitee_token)
+    gitcode_client = GitCode(owner = gitcode_owner, token = gitcode_token)
 
-    gitee_release_id = os.environ.get('gitee_release_id')
-    if not gitee_release_id:
-        gitee_tag_name = get('gitee_tag_name')
-        success, gitee_release_id = gitee_client.get_release_by_tag(gitee_repo, gitee_tag_name)
+    gitcode_release_id = os.environ.get('gitcode_release_id')
+    if not gitcode_release_id:
+        gitcode_tag_name = get('gitcode_tag_name')
+        success, gitcode_release_id = gitcode_client.get_release_by_tag(gitcode_repo, gitcode_tag_name)
         if not success:
-            raise Exception(f"Failed to get release by tag {gitee_tag_name}")
+            raise Exception(f"Failed to get release by tag {gitcode_tag_name}")
 
-    if gitee_files:
-        gitee_files = gitee_files.strip().split("\n")
-        result = upload_assets(gitee_files, gitee_client, gitee_repo, gitee_release_id)
+    if gitcode_files:
+        gitcode_files = gitcode_files.strip().split("\n")
+        result = upload_assets(gitcode_files, gitcode_client, gitcode_repo, gitcode_release_id)
         set_result("download-url", '\n'.join(result))
     else:
-        gitee_file_name = get('gitee_file_name')
-        gitee_file_path = get('gitee_file_path')
-        if gitee_file_path and not os.path.isfile(gitee_file_path):
-            raise ValueError('gitee_file_path not exists: ' + gitee_file_path)
-        success, msg = gitee_client.upload_asset(gitee_repo, gitee_release_id, file_name = gitee_file_name, file_path = gitee_file_path)
+        gitcode_file_name = get('gitcode_file_name')
+        gitcode_file_path = get('gitcode_file_path')
+        if gitcode_file_path and not os.path.isfile(gitcode_file_path):
+            raise ValueError('gitcode_file_path not exists: ' + gitcode_file_path)
+        success, msg = gitcode_client.upload_asset(gitcode_repo, gitcode_release_id, file_name = gitcode_file_name, file_path = gitcode_file_path)
         if not success:
             raise Exception("Upload file asset failed: " + msg)
         set_result("download-url", msg)
 
 def delete_release():
-    gitee_owner = get('gitee_owner')
-    gitee_repo = get('gitee_repo')
-    gitee_token = get('gitee_token')
-    gitee_tag_name = get('gitee_tag_name')
+    gitcode_owner = get('gitcode_owner')
+    gitcode_repo = get('gitcode_repo')
+    gitcode_token = get('gitcode_token')
+    gitcode_tag_name = get('gitcode_tag_name')
     
-    gitee_client = Gitee(owner=gitee_owner, token=gitee_token)
-    success, msg = gitee_client.delete_release_by_tag(gitee_repo, gitee_tag_name)
+    gitcode_client = GitCode(owner=gitcode_owner, token=gitcode_token)
+    success, msg = gitcode_client.delete_release_by_tag(gitcode_repo, gitcode_tag_name)
     if not success:
         raise Exception("Delete release failed: " + msg)
     print("Release deleted successfully")
 
 def delete_asset():
-    gitee_owner = get('gitee_owner')
-    gitee_repo = get('gitee_repo')
-    gitee_token = get('gitee_token')
-    gitee_tag_name = get('gitee_tag_name')
+    gitcode_owner = get('gitcode_owner')
+    gitcode_repo = get('gitcode_repo')
+    gitcode_token = get('gitcode_token')
+    gitcode_tag_name = get('gitcode_tag_name')
     
-    gitee_delete_assets = get('gitee_delete_assets')
-    asset_names = [name.strip() for name in gitee_delete_assets.strip().split('\n') if name.strip()]
+    gitcode_delete_assets = get('gitcode_delete_assets')
+    asset_names = [name.strip() for name in gitcode_delete_assets.strip().split('\n') if name.strip()]
     
-    gitee_client = Gitee(owner=gitee_owner, token=gitee_token)
+    gitcode_client = GitCode(owner=gitcode_owner, token=gitcode_token)
     
     for asset_name in asset_names:
-        success, msg = gitee_client.delete_asset_by_filename(gitee_repo, gitee_tag_name, asset_name)
+        success, msg = gitcode_client.delete_asset_by_filename(gitcode_repo, gitcode_tag_name, asset_name)
         if not success:
             raise Exception(f"Delete asset {asset_name} failed: " + msg)
         print(f"Asset {asset_name} deleted successfully")
 
 def update_asset():
-    gitee_owner = get('gitee_owner')
-    gitee_repo = get('gitee_repo')
-    gitee_token = get('gitee_token')
-    gitee_tag_name = get('gitee_tag_name')
-    gitee_old_asset_name = get('gitee_old_asset_name')
-    gitee_new_file_path = get('gitee_new_file_path')
+    gitcode_owner = get('gitcode_owner')
+    gitcode_repo = get('gitcode_repo')
+    gitcode_token = get('gitcode_token')
+    gitcode_tag_name = get('gitcode_tag_name')
+    gitcode_old_asset_name = get('gitcode_old_asset_name')
+    gitcode_new_file_path = get('gitcode_new_file_path')
     
-    if not os.path.isfile(gitee_new_file_path):
-        raise ValueError('gitee_new_file_path not exists: ' + gitee_new_file_path)
+    if not os.path.isfile(gitcode_new_file_path):
+        raise ValueError('gitcode_new_file_path not exists: ' + gitcode_new_file_path)
     
-    gitee_client = Gitee(owner=gitee_owner, token=gitee_token)
-    success, msg = gitee_client.update_asset(gitee_repo, gitee_tag_name, gitee_old_asset_name, gitee_new_file_path)
+    gitcode_client = GitCode(owner=gitcode_owner, token=gitcode_token)
+    success, msg = gitcode_client.update_asset(gitcode_repo, gitcode_tag_name, gitcode_old_asset_name, gitcode_new_file_path)
     if not success:
         raise Exception("Update asset failed: " + msg)
-    print(f"Asset {gitee_old_asset_name} updated successfully")
+    print(f"Asset {gitcode_old_asset_name} updated successfully")
     set_result("download-url", msg)
         
 if __name__ == "__main__":
-    gitee_action = os.environ.get("gitee_action")
+    gitcode_action = os.environ.get("gitcode_action")
     
-    if gitee_action == "create_release":
+    if gitcode_action == "create_release":":
         create_release()
-    elif gitee_action == "upload_asset":
+    elif gitcode_action == "upload_asset":
         upload_asset()
-    elif gitee_action == "delete_release":
+    elif gitcode_action == "delete_release":
         delete_release()
-    elif gitee_action == "delete_asset":
+    elif gitcode_action == "delete_asset":
         delete_asset()
-    elif gitee_action == "update_asset":
+    elif gitcode_action == "update_asset":
         update_asset()
     else:
-        raise ValueError(f"Unknown action: {gitee_action}. Supported actions: create_release, upload_asset, delete_release, delete_asset, update_asset")
+        raise ValueError(f"Unknown action: {gitcode_action}. Supported actions: create_release, upload_asset, delete_release, delete_asset, update_asset")
